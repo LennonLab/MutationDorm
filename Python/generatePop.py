@@ -1,13 +1,13 @@
 from __future__ import division
 import numpy as np
-import itertools
-import math
 #import matplotlib.pyplot as plt
 #import pylab
 #import matplotlib as mpl
-import argparse
 from collections import Counter
-import random
+import random, argparse, os, math, itertools
+import pandas as pd
+
+mydir = os.path.expanduser("~/github/MutationDorm/")
 
 '''
 View individual fitness as a function of the number of mutations each individual has
@@ -91,8 +91,8 @@ def dormancy_step(pop, seed_bank, c):
     K = N / M
     #dorm_prob = c / N
     #resusc_prob = (c*K) / M
-    c = int(round(c, 0))
-    cK = int(round((K*c), 0))
+    #c = int(round(c, 0))
+    #cK = int(round((K*c), 0))
     for i in range(0, c):
         active_i = get_random_indiv(pop)
         pop[active_i] -= 1
@@ -100,8 +100,8 @@ def dormancy_step(pop, seed_bank, c):
             seed_bank[active_i] += 1
         else:
             seed_bank[active_i] = 1
-    for i in range(0, cK):
-        print seed_bank, c, cK
+    for i in range(0, c):
+        #print seed_bank, c, cK
         dormant_i = get_random_indiv(seed_bank)
         seed_bank[dormant_i] -= 1
         if dormant_i in pop:
@@ -114,48 +114,83 @@ def fitness(pop, s=0.01):
     pop_fitness = []
     N = sum(pop.values())
     for mutation_class, n in pop.iteritems():
-        fitness_class = (1-s) ** mutation_class
-        pop_fitness.append(fitness_class * n)
+        fitness = (1-s) ** mutation_class
+        pop_fitness.append(fitness * n)
     return np.mean(pop_fitness)
     #print pop.values()
+
+def merge_two_dicts(x, y):
+    '''Given two dicts, merge them into a new dict as a shallow copy.'''
+    z = x.copy()
+    z.update(y)
+    return z
 
 def simulate(N, U, delata_U,  generations, good_freq, c, M):
     pop = generate_pop(N)
     gen_list = good_bad_not_evil(generations, good_freq)
+    fitness_gens = []
     if M != 0:
         seed_bank = generate_pop(M)
+    else:
+        seed_bank = {}
     for i in range(generations):
         environ_qual = int(gen_list[i])
         if (environ_qual == 0) and (M==0):
             time_step(pop, U + delata_U)
         elif (environ_qual == 0) and (M!=0):
-
             dormancy_step(pop, seed_bank, c)
+            # wait, should I remove this time step
             time_step(pop, U + delata_U)
         else:
             time_step(pop, U)
+        merged_pops  =merge_two_dicts(pop, seed_bank)
+        fitness_gens.append(fitness(merged_pops, s=0.01))
+
     # get mean and SD of W
-    return fitness(pop, s=0.01)
+    #return fitness(pop, s=0.01)
+    #print np.mean(fitness_gens)
+    return fitness_gens
 
 
-def many_simulations(N, U, delata_U,  generations, good_freq, c, M):
+
+def many_simulations(sims, N, U, delata_U,  generations, good_freq, c, M):
     fitness_list = []
-    for x in range(generations):
+    for x in range(sims):
         fitness_x = simulate(N, U, delata_U,  generations, good_freq, c, M)
         #print fitness_x
         fitness_list.append(fitness_x)
-    print np.mean(fitness_list)
+    return fitness_list
+    #print np.mean(fitness_list)
+
+
+
+def many_many_simulations(sims, N, U, delata_U, generations, c, dataDir = mydir):
+    M_list = [N/1, N/10, N/100]
+    good_freq = [0, 0.5, 1]
+    #M_list = [N/1]
+    #good_freq = [0]
+    zip_sim = zip(M_list, good_freq)
+    for x in M_list:
+        for y in good_freq:
+            print x, y
+            x_return = many_simulations(sims, N, U, delata_U,  generations, y, c, x)
+            x_pd = pd.DataFrame(x_return)
+            name = mydir+ 'data/' +  str(int(x)) + '_' + str(y) + '.txt'
+            x_pd.to_csv(name, sep = '\t')
+
+
+
+# simulation by generation matrix
 
 
 U = 0.1
 delata_U = 0.2
 generations = 100
-good_freq = 0
-N = 100
-c = 1
-M = 50
-many_simulations(N, U, delata_U,  generations, good_freq, c, M)
+N = 1000
+# 10 percent of active individuals enter dormancy
+# x% go from dormant to active (depends on M)
+c = 10
+sims = 100
+many_many_simulations(sims, N, U, delata_U, generations, c)
 
-
-### So there's sampling error and the dormant pool decreases to zero
-# need to fix this
+#many_simulations(10, N, U, delata_U,  10, 0.5, c, 100)
