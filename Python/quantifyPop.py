@@ -1,7 +1,6 @@
 from __future__ import division
 import math
 import matplotlib.pyplot as plt
-import pylab
 import matplotlib as mpl
 import generatePop as gp
 
