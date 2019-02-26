@@ -177,7 +177,6 @@ def simulate_history(pop, mutation_rate, generations, seq_length, active_size, d
     history = []
     history.append(merge_two_dicts(pop['Active'], pop['Dormant']))
     for i in range(generations):
-        print active_size, dormant_size, c, i
         time_step(pop, mutation_rate, seq_length, active_size, dormant_size, c)
         pop_merged = merge_two_dicts(pop['Active'], pop['Dormant'])
         history.append(pop_merged)
